@@ -80,6 +80,35 @@ Best artifacts: `runs/paper_denoise_aug/{closed,open,generator}.pt`,
   rejecting the real unknowns that crowd the same region. Eq. (22) as written
   is the right trade.
 
+## Equation-level alignment audit (2026-07-16)
+
+A line-by-line pass over Eqs. (1)–(36) and Algorithm 1 against the code
+confirmed exact matches for the metrics (Eq. 36), preprocessing (Eqs. 2–4),
+both feature branches and fusion (Eqs. 5–12), the generative stage
+(Eqs. 20–23), Weibull fitting (Eqs. 24–25), and WGAN-GP (Eqs. 31–32).
+Parameter-count constraints pin the undisclosed architecture dimensions:
+ResNet 700,528 vs the paper's 700,816 (−0.04%), full model 206.08 M vs
+205.81 M (+0.13%); one additional TransformerEncoder layer would add
+~1.05 M, so L=1 is the uniquely consistent depth. Remaining known
+deviations, all minor and documented:
+
+- **Eq. (28) rank weights**: the paper's literal (α−k)/α makes α=1 a no-op
+  (likely another off-by-one typo); the library uses Bendale's (α−k+1)/α.
+  Both were evaluated — test results are equivalent within selection noise.
+- **Top-α ranking scope**: the library ranks known logits only; Algorithm 1
+  sorts all N+1 channels (part of the fold-vs-N+2 difference shown
+  equivalent above).
+- **Weibull location**: fixed at 0 on raw distances vs libMR's translated
+  two-parameter fit; absorbed by tail-size selection.
+- **Ltotal ambiguity (untested alternative)**: Table I defines a combined
+  Lsup+Lce loss that the text never uses; Fig. 4's accuracy curve over the
+  30 pre-training epochs hints at joint training. This reproduction uses the
+  sequential reading (30 SupCon epochs, then 10 classifier epochs with the
+  encoder fine-tuned at 1e-4; full freezing was much worse).
+- **Eq. (13) A(i)**: described as "all negative samples", but Khosla et al.
+  (cited) define A(i) as all samples except the anchor; the implementation
+  follows Khosla.
+
 ## Split protocol and leakage audit
 
 Splits are assigned per 3 ms sample (slice level), matching the paper's
