@@ -58,11 +58,20 @@ Best artifacts: `runs/paper_denoise_aug/{closed,open,generator}.pt`,
 
 ## Negative results (kept for the record)
 
-- **Paper-literal IG-OpenMax (Eqs. 26–30)** with a separate (N+2)-th unknown
-  channel is *worse* on this feature space than the folding implementation in
-  `openmax.py` (val harmonic 0.799 vs 0.844). The literal survival-function
-  form of Eq. (28) collapses entirely (UAR 35%); the CDF form (standard
-  OpenMax, Bendale & Boult) is clearly what the paper means.
+- The literal survival-function form of Eq. (28) collapses entirely (UAR 35%
+  on the earlier model); the CDF form (standard OpenMax, Bendale & Boult) is
+  clearly what the paper means — the survival form penalizes inliers instead
+  of outliers.
+- **Paper's separate (N+2)-th unknown channel (Eqs. 26–30)**: an early test
+  suggested it was much worse (val harmonic 0.799 vs 0.844), but that test
+  multiplied *negative* logits by c<1 (inflating them — Bendale's formulation
+  assumes positive activations) and used the weaker pre-denoise-fix model.
+  Re-tested on the final model with a relu-guarded shrink, the faithful N+2
+  form is statistically equivalent to the folding implementation (test
+  harmonic 0.895 vs 0.902) and better balanced (GAP 0.61% vs 2.34% at each
+  variant's own validation-selected operating point). Folding remains the
+  default; the two differ only in whether the redistributed probability mass
+  competes with or adds to the trained unknown logit.
 - **Shrinking the synthetic-unknown set** (5000 → 3500/2000) hurts
   (val harmonic 0.875 → 0.860/0.858), as does a G-OpenMax-style confidence cap
   on selected boundary samples (0.9/0.7/0.5 → 0.850–0.854). The
@@ -70,6 +79,25 @@ Best artifacts: `runs/paper_denoise_aug/{closed,open,generator}.pt`,
   (esp. T1110) cost that class known-accuracy but are load-bearing for
   rejecting the real unknowns that crowd the same region. Eq. (22) as written
   is the right trade.
+
+## Split protocol and leakage audit
+
+Splits are assigned per 3 ms sample (slice level), matching the paper's
+sample-level Dtrain/Dtest description (Eqs. 16–17; the paper never mentions
+capture-level splitting, and DroneRFa has only 8–16 captures per class).
+An audit of the prepared manifest confirms:
+
+- **No literal data reuse**: all 73,596 one-millisecond sub-slice windows are
+  unique, aligned, and non-overlapping — no I/Q segment appears in more than
+  one sample, so train and test never share raw data.
+- **Capture-level mixing exists by construction**: 246 of 313 capture-channels
+  contribute slices to both train and test. Temporally adjacent slices from
+  the same capture are correlated (same distance, channel state, hardware
+  session), so absolute accuracies are optimistic relative to a
+  held-out-capture deployment scenario. This affects the paper's numbers
+  identically, so the paper-vs-reproduction comparison remains
+  apples-to-apples; a capture-level split would be a stricter, different
+  benchmark than the one the paper reports.
 
 ## Remaining gap and diagnosis
 
