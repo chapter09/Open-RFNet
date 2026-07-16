@@ -16,6 +16,46 @@ The implementation follows the paper's four-stage pipeline:
 4. Fit per-class Weibull tails to mean activation vector distances and apply
    IG-OpenMax calibration at inference.
 
+## Reproduced results
+
+Best reproduction (`configs/paper_denoise_aug.yaml`, test split, 20 known /
+5 unknown classes, RTX 3090) against the paper's Table V:
+
+| Metric | Paper | This reproduction |
+|---|---:|---:|
+| Closed-set accuracy | 99.40% | 98.83% |
+| KAR (known accuracy) | 95.12% | 89.54% |
+| UAR (unknown accuracy) | 96.08% | 90.32% |
+| KP (known precision) | 98.87% | 97.09% |
+| UP (unknown precision) | 83.86% | 69.26% |
+| GAP (\|KAR − UAR\|) | 0.96% | 0.78% |
+
+The changes that mattered most, in order of measured impact:
+
+1. **Per-capture adaptive denoise threshold** (`noise_floor_factor`) —
+   receiver gain varies by >20 dB across DroneRFa captures, so a single
+   absolute RMS threshold accepts pure noise on high-gain captures and mostly
+   noise on weak ones. Anchoring the threshold to each capture's own noise
+   floor lifted closed accuracy from 97.7% to 99.0% and UAR by ~7 pp,
+   mirroring the paper's own denoising ablation (+31 pp UAR).
+2. **Stratified Eq. (22) synthetic-unknown selection** — all 20 conditioning
+   classes contribute boundary samples before the global cap is applied.
+3. **Stronger SupCon augmentation** (8% time/frequency masking, noise 0.01,
+   gain ±10%) — known/unknown separability (max-softmax AUROC) rose from
+   0.862 to 0.918 at unchanged closed accuracy.
+4. **Balanced OpenMax operating point** — among validation candidates within
+   0.005 harmonic accuracy of the best, the smallest KAR/UAR gap is selected,
+   matching the paper's stated "balanced performance" criterion.
+
+Remaining gap: the residual ~5.5 pp on KAR/UAR traces to known/unknown
+boundary regions (T1110 shares its feature region with the unknown RC
+controllers; VBar↔FrSky X20 confusion) plus details the paper does not
+disclose (exact STFT/augmentation parameters, GAN capacity, capture
+selection). `RESULTS.md` records the full history, per-class diagnosis, and
+negative results (what was tried and did not help).
+
+![Test confusion matrix](docs/confusion_matrix.png)
+
 ## Important reproduction limits
 
 The authors did not release source code in the paper or in a public GitHub
@@ -30,7 +70,7 @@ is exposed in YAML.
 | Slice | 3 ms / 300,000 points | Exact |
 | STFT output | 775 x 775 | Exact in `paper.yaml` |
 | STFT window/hop | Not reported | 1024 / 384, then bilinear resize |
-| Denoising threshold | Not reported | -56 dBFS complex RMS; background bypasses it |
+| Denoising threshold | Not reported | max(-51 dBFS, 1.4 x per-capture noise floor); background bypasses it |
 | Examples per class | Not reported | 1,000, inferred from 0.4% test-accuracy steps |
 | Train/test split | Not reported | 75/25, with 10% of train used for validation |
 | Model widths/depths | Not reported | Chosen to approximate the reported 205.8M parameters |
