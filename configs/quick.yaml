@@ -1,0 +1,58 @@
+# A short empirical run on all 25 classes. This is larger than the smoke test
+# but intentionally much smaller than the paper-scale experiment.
+seed: 42
+dataset_root: /home/coder/DroneRFa
+cache_dir: /home/coder/Open-RFNet/prepared/quick
+run_dir: /home/coder/Open-RFNet/runs/quick
+
+data:
+  sample_rate: 100000000
+  sample_length: 300000
+  sub_slice_length: 100000
+  max_samples_per_class: 100
+  test_fraction: 0.25
+  validation_fraction: 0.10
+  denoise: true
+  noise_threshold_dbfs: -56.0
+  stft: {n_fft: 512, win_length: 512, hop_length: 600, output_size: 128}
+  preprocessing_device: cuda
+
+model:
+  input_size: 128
+  resnet_base_width: 8
+  transformer_dim: 32
+  transformer_heads: 4
+  transformer_layers: 1
+  transformer_ff_dim: 64
+  position_dim: 64
+  fused_dim: 128
+  projection_hidden_dim: 128
+  projection_dim: 64
+  dropout: 0.10
+
+training:
+  batch_size: 32
+  num_workers: 4
+  amp: true
+  temperature: 0.07
+  supcon_epochs: 5
+  classifier_epochs: 3
+  learning_rate: 0.001
+  classifier_learning_rate: 0.001
+  weight_decay: 0.0001
+  freeze_encoder_for_classifier: true
+
+gan:
+  epochs: 3
+  batch_size: 32
+  latent_dim: 64
+  label_dim: 32
+  base_channels: 16
+  learning_rate: 0.0001
+  critic_steps: 3
+  gradient_penalty: 10.0
+  candidates_per_class: 100
+  max_synthetic_unknown: 500
+  open_classifier_epochs: 3
+
+openmax: {tail_size: 10, alpha: 3}

@@ -1,0 +1,63 @@
+seed: 42
+dataset_root: /home/coder/DroneRFa
+cache_dir: /home/coder/Open-RFNet/prepared/paper
+run_dir: /home/coder/Open-RFNet/runs/paper
+
+data:
+  sample_rate: 100000000
+  sample_length: 300000
+  sub_slice_length: 100000
+  max_samples_per_class: 1000
+  test_fraction: 0.25
+  validation_fraction: 0.10
+  denoise: true
+  noise_threshold_dbfs: -56.0
+  stft:
+    n_fft: 1024
+    win_length: 1024
+    hop_length: 384
+    output_size: 775
+  preprocessing_device: cuda
+
+model:
+  input_size: 775
+  resnet_base_width: 16
+  transformer_dim: 256
+  transformer_heads: 8
+  transformer_layers: 1
+  transformer_ff_dim: 512
+  position_dim: 512
+  fused_dim: 512
+  projection_hidden_dim: 256
+  projection_dim: 128
+  dropout: 0.10
+
+training:
+  batch_size: 128
+  num_workers: 8
+  amp: true
+  temperature: 0.07
+  supcon_epochs: 30
+  classifier_epochs: 10
+  learning_rate: 0.001
+  classifier_learning_rate: 0.001
+  weight_decay: 0.0001
+  freeze_encoder_for_classifier: true
+
+gan:
+  epochs: 50
+  batch_size: 32
+  latent_dim: 128
+  label_dim: 64
+  base_channels: 32
+  learning_rate: 0.0001
+  critic_steps: 5
+  gradient_penalty: 10.0
+  candidates_per_class: 1000
+  max_synthetic_unknown: 5000
+  open_classifier_epochs: 10
+
+openmax:
+  tail_size: 20
+  alpha: 3
+
